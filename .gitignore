@@ -1,5 +1,5 @@
 *.o
 impl
-nes.gprj.user
+gb.gprj.user
 
 *.vcd
