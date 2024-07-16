@@ -7,7 +7,7 @@
 //Device Version: C
 //Created Time: Fri Apr  5 10:42:16 2024
 
-module gowin_pll_nes (clkout, clkoutp, clkoutd3, clkin);
+module gowin_pll_gb (clkout, clkoutp, clkoutd3, clkin);
 
 output clkout;
 output clkoutp;

@@ -208,11 +208,11 @@ end
 `ifdef PRIMER
 // sysclk 50Mhz
 gowin_pll_27 pll_27 (.clkin(sys_clk), .clkout0(clk27));      // Primer25K: PLL to generate 27Mhz from 50Mhz
-gowin_pll_nes pll_nes (.clkin(sys_clk), .clkout0(clk), .clkout1(fclk), .clkout2(O_sdram_clk));
+gowin_pll_gb pll_gb (.clkin(sys_clk), .clkout0(clk), .clkout1(fclk), .clkout2(O_sdram_clk));
 `else
 // sys_clk 27Mhz
 assign clk27 = sys_clk;       // Nano20K: native 27Mhz system clock
-gowin_pll_nes pll_nes(.clkin(sys_clk), .clkoutd3(clk), .clkout(fclk), .clkoutp(O_sdram_clk));
+gowin_pll_gb pll_gb(.clkin(sys_clk), .clkoutd3(clk), .clkout(fclk), .clkoutp(O_sdram_clk));
 `endif  // PRIMER
 
 gowin_pll_hdmi pll_hdmi (
@@ -238,46 +238,46 @@ assign fclk = sys_clk;
 wire [31:0] status;
 
 // Main NES machine
-wire [7:0] NES_memory_din_cpu;
-wire [7:0] NES_cheats_otuput_data_test;
-wire NES_top_cheats_stb;
+wire [7:0] GB_memory_din_cpu;
+wire [7:0] GB_cheats_otuput_data_test;
+wire GB_top_cheats_stb;
 
-assign NES_top_cheats_stb= (NES_cheats_enabled)&&(NES_cheats_loaded)&&(NES_cheats_stb);
-assign NES_memory_din_cpu = (!NES_top_cheats_stb ? memory_din_cpu : NES_cheats_otuput_data);
+assign GB_top_cheats_stb= (GB_cheats_enabled)&&(GB_cheats_loaded)&&(GB_cheats_stb);
+assign GB_memory_din_cpu = (!GB_top_cheats_stb ? memory_din_cpu : GB_cheats_otuput_data);
 
-NES nes(
-    .clk(clk), .reset_nes(reset_nes), .cold_reset(1'b0),
-    .sys_type(system_type), .nes_div(nes_ce),
-    .mapper_flags(mapper_flags),
-    .sample(sample), .color(color),
-    .joypad_out(joypad_out), .joypad_clock(joypad_clock), 
-    .joypad1_data(joypad1_data), .joypad2_data(joypad2_data),
+// NES nes(
+//     .clk(clk), .reset_nes(reset_nes), .cold_reset(1'b0),
+//     .sys_type(system_type), .nes_div(nes_ce),
+//     .mapper_flags(mapper_flags),
+//     .sample(sample), .color(color),
+//     .joypad_out(joypad_out), .joypad_clock(joypad_clock), 
+//     .joypad1_data(joypad1_data), .joypad2_data(joypad2_data),
 
-    .fds_busy(), .fds_eject(), .diskside_req(), .diskside(),        // disk system
-    .audio_channels(5'b11111),  // enable all channels
+//     .fds_busy(), .fds_eject(), .diskside_req(), .diskside(),        // disk system
+//     .audio_channels(5'b11111),  // enable all channels
     
-    .cpumem_addr(memory_addr_cpu),
-    .cpumem_read(memory_read_cpu),
-    .cpumem_din(NES_cheats_otuput_data),
-    .cpumem_write(memory_write_cpu),
-    .cpumem_dout(memory_dout_cpu),
-    .ppumem_addr(memory_addr_ppu),
-    .ppumem_read(memory_read_ppu),
-    .ppumem_write(memory_write_ppu),
-    .ppumem_din(memory_din_ppu),
-    .ppumem_dout(memory_dout_ppu),
+//     .cpumem_addr(memory_addr_cpu),
+//     .cpumem_read(memory_read_cpu),
+//     .cpumem_din(GB_cheats_otuput_data),
+//     .cpumem_write(memory_write_cpu),
+//     .cpumem_dout(memory_dout_cpu),
+//     .ppumem_addr(memory_addr_ppu),
+//     .ppumem_read(memory_read_ppu),
+//     .ppumem_write(memory_write_ppu),
+//     .ppumem_din(memory_din_ppu),
+//     .ppumem_dout(memory_dout_ppu),
 
-    .bram_addr(), .bram_din(), .bram_dout(), .bram_write(), .bram_override(),
+//     .bram_addr(), .bram_din(), .bram_dout(), .bram_write(), .bram_override(),
 
-    .cycle(cycle), .scanline(scanline),
-    .int_audio(int_audio),    // VRC6
-    .ext_audio(ext_audio),
+//     .cycle(cycle), .scanline(scanline),
+//     .int_audio(int_audio),    // VRC6
+//     .ext_audio(ext_audio),
 
-    .apu_ce(), .gg(), .gg_code(), .gg_avail(), .gg_reset(), .emphasis(), .save_written(),
-    // Enhanced APU
-    .i_APU_enhancements_ce(NES_enhanced_APU),
-    .i_APU_mapper_saturates((NES_mapper == 8'h04)||(NES_mapper == 8'h45))   // Mapper4/MMC3 and Mapper69 saturate so far
-);
+//     .apu_ce(), .gg(), .gg_code(), .gg_avail(), .gg_reset(), .emphasis(), .save_written(),
+//     // Enhanced APU
+//     .i_APU_enhancements_ce(GB_enhanced_APU),
+//     .i_APU_mapper_saturates((GB_mapper == 8'h04)||(GB_mapper == 8'h45))   // Mapper4/MMC3 and Mapper69 saturate so far
+// );
 
 // loader_write -> clock when data available
 reg loader_write_mem;
@@ -300,7 +300,7 @@ always @(posedge clk) begin
 end
 
 // From sdram_nes.v or sdram_sim.v
-sdram_nes sdram (
+sdram_gb sdram (
     .clk(fclk), .clkref(clkref), .resetn(sys_resetn), .busy(sdram_busy),
 
     .SDRAM_DQ(IO_sdram_dq), .SDRAM_A(O_sdram_addr), .SDRAM_BA(O_sdram_ba), 
@@ -333,7 +333,7 @@ GameLoader loader(
     .mapper_flags(loader_flags), .busy(loader_busy), .done(loader_done),
     .error(loader_fail), .rom_loaded(),
     // APU Enhancement
-    .o_mapper(NES_mapper)
+    .o_mapper(GB_mapper)
 );
 
 assign int_audio = 1;
@@ -374,7 +374,7 @@ nes2hdmi u_hdmi (     // purple: RGB=440064 (010001000_00000000_01100100), BGR5=
     .clk(clk), .resetn(sys_resetn),
     .color(color), .cycle(cycle), 
     .scanline(scanline), .sample(sample >> 1),
-    .i_reg_aspect_ratio(NES_aspect_ratio),
+    .i_reg_aspect_ratio(GB_aspect_ratio),
     .overlay(overlay), .overlay_x(overlay_x), .overlay_y(overlay_y),
     .overlay_color(overlay_color),
     .clk_pixel(hclk), .clk_5x_pixel(hclk5),
@@ -464,8 +464,8 @@ always @(posedge clk) begin            // RV
         endcase
     end
 end
-reg NES_enhanced_APU;
-reg [7:0] NES_mapper;
+reg GB_enhanced_APU;
+reg [7:0] GB_mapper;
 iosys #(.COLOR_LOGO(15'b01000_00000_01000), .CORE_ID(3) )     // purple nestang logo
     iosys (
     .clk(clk), .hclk(hclk), .resetn(sys_resetn),
@@ -488,23 +488,23 @@ iosys #(.COLOR_LOGO(15'b01000_00000_01000), .CORE_ID(3) )     // purple nestang 
 
     .sd_clk(sd_clk), .sd_cmd(sd_cmd), .sd_dat0(sd_dat0), .sd_dat1(sd_dat1),
     .sd_dat2(sd_dat2), .sd_dat3(sd_dat3),
-    .o_reg_enhanced_apu(NES_enhanced_APU),
+    .o_reg_enhanced_apu(GB_enhanced_APU),
     // Wishbone master
-    .i_wb_ack(NES_wb_slave_ack),
-    .i_wb_stall(NES_wb_slave_stall),
-    .i_wb_idata(NES_wb_slave_data),
-    .i_wb_err(NES_wb_slave_err),
-	.o_wb_cyc(NES_wb_master_cyc),
-    .o_wb_stb(NES_wb_master_stb),
-    .o_wb_we(NES_wb_master_we),
-    .o_wb_err(NES_wb_master_err),
-    .o_wb_addr(NES_wb_slave_addr),
-    .o_wb_odata(NES_wb_master_data),
-    .o_wb_sel(NES_wb_master_sel),
+    .i_wb_ack(GB_wb_slave_ack),
+    .i_wb_stall(GB_wb_slave_stall),
+    .i_wb_idata(GB_wb_slave_data),
+    .i_wb_err(GB_wb_slave_err),
+	.o_wb_cyc(GB_wb_master_cyc),
+    .o_wb_stb(GB_wb_master_stb),
+    .o_wb_we(GB_wb_master_we),
+    .o_wb_err(GB_wb_master_err),
+    .o_wb_addr(GB_wb_slave_addr),
+    .o_wb_odata(GB_wb_master_data),
+    .o_wb_sel(GB_wb_master_sel),
 
     // Cheats
-    .o_cheats_enabled(NES_cheats_enabled),
-    .o_cheats_loaded(NES_cheats_loaded),
+    .o_cheats_enabled(GB_cheats_enabled),
+    .o_cheats_loaded(GB_cheats_loaded),
 
     // Debug LED
     .o_dbg_led(),
@@ -513,7 +513,7 @@ iosys #(.COLOR_LOGO(15'b01000_00000_01000), .CORE_ID(3) )     // purple nestang 
     .o_sys_type(system_type),
     
     // Aspect Ratio
-    .o_reg_aspect_ratio(NES_aspect_ratio)
+    .o_reg_aspect_ratio(GB_aspect_ratio)
 );
 
 // Controller input
@@ -560,96 +560,59 @@ end
 assign joypad1_data[0] = joypad_bits[0];
 assign joypad2_data[0] = joypad_bits2[0];
 
-//   usb_btn:      (R L D U START SELECT B A)
-// wire [1:0] usb_type, usb_type2;
-// wire usb_report, usb_report2;
-// usb_hid_host usb_controller (
-//     .usbclk(clk_usb), .usbrst_n(sys_resetn),
-//     .usb_dm(usbdm), .usb_dp(usbdp),	.typ(usb_type), .report(usb_report), 
-//     .game_l(usb_btn[6]), .game_r(usb_btn[7]), .game_u(usb_btn[4]), .game_d(usb_btn[5]), 
-//     .game_a(usb_btn[0]), .game_b(usb_btn[1]), .game_x(usb_btn_x), .game_y(usb_btn_y), 
-//     .game_sel(usb_btn[2]), .game_sta(usb_btn[3]),
-//     // ignore keyboard and mouse input
-//     .key_modifiers(), .key1(), .key2(), .key3(), .key4(),
-//     .mouse_btn(), .mouse_dx(), .mouse_dy(),
-//     .dbg_hid_report()
-// );
-
-// `ifndef PRIMER
-// usb_hid_host usb_controller2 (
-//     .usbclk(clk_usb), .usbrst_n(sys_resetn),
-//     .usb_dm(usbdm2), .usb_dp(usbdp2),	.typ(usb_type2), .report(usb_report2), 
-//     .game_l(usb_btn2[6]), .game_r(usb_btn2[7]), .game_u(usb_btn2[4]), .game_d(usb_btn2[5]), 
-//     .game_a(usb_btn2[0]), .game_b(usb_btn2[1]), .game_x(usb_btn_x2), .game_y(usb_btn_y2), 
-//     .game_sel(usb_btn2[2]), .game_sta(usb_btn2[3]),
-//     // ignore keyboard and mouse input
-//     .key_modifiers(), .key1(), .key2(), .key3(), .key4(),
-//     .mouse_btn(), .mouse_dx(), .mouse_dy(),
-//     .dbg_hid_report()
-// );
-// `endif
-
 `endif
-
-//assign led = ~{~UART_RXD, loader_done};
-//assign led = ~{~UART_RXD, usb_conerr, loader_done};
-// assign led = {joy1_btns[1], joy1_btns[0]};
 
 reg [23:0] led_cnt;
 always @(posedge clk) led_cnt <= led_cnt + 1;
-//assign led = {led_cnt[23], led_cnt[22]};
 
 //
 // Wishbone Bus
 //
-wire NES_wb_master_cyc;
-wire NES_wb_master_stb;
-wire NES_wb_master_we;
-wire NES_wb_master_err;
-wire [1:0] NES_wb_slave_addr;
-wire [128:0] NES_wb_master_data;
-wire NES_wb_slave_ack;
-wire NES_wb_slave_stall;
-wire NES_wb_slave_err;
-wire [128:0] NES_wb_slave_data;
-wire [2:0] NES_wb_slave_sel;
+wire GB_wb_master_cyc;
+wire GB_wb_master_stb;
+wire GB_wb_master_we;
+wire GB_wb_master_err;
+wire [1:0] GB_wb_slave_addr;
+wire [128:0] GB_wb_master_data;
+wire GB_wb_slave_ack;
+wire GB_wb_slave_stall;
+wire GB_wb_slave_err;
+wire [128:0] GB_wb_slave_data;
+wire [2:0] GB_wb_slave_sel;
 
 // Cheats
-wire [7:0] NES_cheats_otuput_data;
-wire NES_cheats_stb;
-wire [23:0] NES_cheats_memory_addr_cpu;
-wire NES_cheats_enabled;
-wire NES_cheats_loaded;
+wire [7:0] GB_cheats_otuput_data;
+wire GB_cheats_stb;
+wire [23:0] GB_cheats_memory_addr_cpu;
+wire GB_cheats_enabled;
+wire GB_cheats_loaded;
 
-assign NES_cheats_memory_addr_cpu = {2'b00, memory_addr_cpu};
-// assign led[0] = ~NES_cheats_enabled;
-// assign led[1] = ~NES_cheats_loaded;
+assign GB_cheats_memory_addr_cpu = {2'b00, memory_addr_cpu};
+// assign led[0] = ~GB_cheats_enabled;
+// assign led[1] = ~GB_cheats_loaded;
 
 cheat_wizard(
     .i_clk(clk),
     .i_reset_n(sys_resetn), 
-    .i_cheats_enabled(NES_cheats_enabled),
-    .i_cheats_loaded(NES_cheats_loaded),
-    .i_sram_address(NES_cheats_memory_addr_cpu),
+    .i_cheats_enabled(GB_cheats_enabled),
+    .i_cheats_loaded(GB_cheats_loaded),
+    .i_sram_address(GB_cheats_memory_addr_cpu),
     .i_sram_data(memory_din_cpu),
-    .o_cheat_stb(NES_cheats_stb),
-    .o_sram_data(NES_cheats_otuput_data),
-    .i_wb_cyc(NES_wb_master_cyc),
-    .i_wb_stb(NES_wb_master_stb),
-    .i_wb_we(NES_wb_master_we),
-    .i_wb_err(NES_wb_master_err),
-    .i_wb_addr(NES_wb_slave_addr),
-    .i_wb_idata(NES_wb_master_data),
-    .o_wb_ack(NES_wb_slave_ack),
-    .o_wb_stall(NES_wb_slave_stall),
-    .o_wb_err(NES_wb_slave_err)    
+    .o_cheat_stb(GB_cheats_stb),
+    .o_sram_data(GB_cheats_otuput_data),
+    .i_wb_cyc(GB_wb_master_cyc),
+    .i_wb_stb(GB_wb_master_stb),
+    .i_wb_we(GB_wb_master_we),
+    .i_wb_err(GB_wb_master_err),
+    .i_wb_addr(GB_wb_slave_addr),
+    .i_wb_idata(GB_wb_master_data),
+    .o_wb_ack(GB_wb_slave_ack),
+    .o_wb_stall(GB_wb_slave_stall),
+    .o_wb_err(GB_wb_slave_err)    
 );
 
 // Aspect Ratio
-reg NES_aspect_ratio;
-initial NES_aspect_ratio = 1'b0;
-
-// assign led[0] = ~NES_cheats_enabled;
-// assign led[1] = ~NES_cheats_loaded;
+reg GB_aspect_ratio;
+initial GB_aspect_ratio = 1'b0;
 
 endmodule
