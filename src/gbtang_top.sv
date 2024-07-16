@@ -466,7 +466,7 @@ always @(posedge clk) begin            // RV
 end
 reg NES_enhanced_APU;
 reg [7:0] NES_mapper;
-iosys #(.COLOR_LOGO(15'b01100_00000_01000), .CORE_ID(1) )     // purple nestang logo
+iosys #(.COLOR_LOGO(15'b01000_00000_01000), .CORE_ID(3) )     // purple nestang logo
     iosys (
     .clk(clk), .hclk(hclk), .resetn(sys_resetn),
 
