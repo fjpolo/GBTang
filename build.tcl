@@ -1,22 +1,16 @@
 if {$argc == 0} {
-    puts "Usage: $argv0 <device> <controller> <mcu>"
-    puts "          device: nano20k, primer25k, mega60k"
+    puts "Usage: $argv0 <device> [<controller>]"
+    puts "          device: nano20k, primer25k"
     puts "      controller: snes, ds2"
-    puts "             mcu: bl616, picorv32"
     puts "Note: nano20k supports both controllers simultaneously, so build with just: gw_sh build.tcl nano20k"
     exit 1
 }
 
 set dev [lindex $argv 0]
-if {$argc >= 2} {
+if {$argc == 2} {
     set controller [lindex $argv 1]
 } else {
     set controller ""
-}
-if {$argc >= 3} {
-    set mcu [lindex $argv 2]
-} else {
-    set mcu "bl616"
 }
 
 # process $dev and $controller
@@ -26,7 +20,6 @@ if {$dev eq "nano20k"} {
     add_file -type cst "src/nano20k/nestang.cst"
     add_file -type verilog "src/nano20k/gowin_pll_hdmi.v"
     add_file -type verilog "src/nano20k/gowin_pll_nes.v"
-    add_file -type sdc "src/nano20k/nestang.sdc"
     # nano20k supports both controllers simultaneously
     set_option -output_base_name nestang_${dev}
 } elseif {$dev eq "primer25k"} {
@@ -43,60 +36,10 @@ if {$dev eq "nano20k"} {
     add_file -type verilog "src/primer25k/gowin_pll_27.v"
     add_file -type verilog "src/primer25k/gowin_pll_hdmi.v"
     add_file -type verilog "src/primer25k/gowin_pll_nes.v"
-    add_file -type sdc "src/primer25k/nestang.sdc"
     set_option -output_base_name nestang_${dev}_${controller}
-} elseif {$dev eq "mega60k"} {
-    set_device GW5AT-LV60PG484AC1/I0 -device_version B
-    if {$controller eq "snes"} {
-        add_file src/mega60k/config_snescontroller.v
-        add_file -type cst "src/mega60k/nestang_snescontroller.cst"
-    } elseif {$controller eq "ds2"} {
-        add_file src/mega60k/config.v
-        add_file -type cst "src/mega60k/nestang.cst"
-    } else {
-        error "Unknown controller $controller"
-    }
-    # mega60k uses the same PLL as primer25k
-    add_file -type verilog "src/primer25k/gowin_pll_27.v"
-    add_file -type verilog "src/primer25k/gowin_pll_hdmi.v"
-    add_file -type verilog "src/primer25k/gowin_pll_nes.v"
-    add_file -type sdc "src/primer25k/nestang.sdc"
-    set_option -output_base_name nestang_${dev}_${controller}_${mcu}
-} elseif {$dev eq "console60k"} {
-    set_device GW5AT-LV60PG484AC1/I0 -device_version B
-    if {$controller eq "snes"} {
-        add_file src/console60k/config_snescontroller.v
-        add_file -type cst "src/console60k/nestang_snescontroller.cst"
-    } elseif {$controller eq "ds2"} {
-        add_file src/console60k/config.v
-        add_file -type cst "src/console60k/nestang.cst"
-    } else {
-        error "Unknown controller $controller"
-    }
-    # mega60k uses the same PLL as primer25k
-    add_file -type verilog "src/primer25k/gowin_pll_27.v"
-    add_file -type verilog "src/primer25k/gowin_pll_hdmi.v"
-    add_file -type verilog "src/primer25k/gowin_pll_nes.v"
-    add_file -type sdc "src/primer25k/nestang.sdc"
-    set_option -output_base_name nestang_${dev}_${controller}_${mcu}
 } else {
     error "Unknown device $dev"
 }
-
-if {$mcu eq "bl616"} {
-    add_file -type verilog "src/iosys/iosys_bl616.v"
-    add_file -type verilog "src/iosys/uart_fractional.v"
-} elseif {$mcu eq "picorv32"} {
-    add_file -type verilog "src/iosys/iosys_picorv32.v"
-    add_file -type verilog "src/iosys/simplespimaster.v"
-    add_file -type verilog "src/iosys/simpleuart.v"
-    add_file -type verilog "src/iosys/spi_master.v"
-    add_file -type verilog "src/iosys/spiflash.v"
-} else {
-    error "Unknown MCU $mcu"
-}
-add_file -type verilog "src/iosys/gowin_dpb_menu.v"
-add_file -type verilog "src/iosys/textdisp.v"
 
 add_file -type verilog "src/apu.v"
 add_file -type verilog "src/autofire.v"
@@ -119,6 +62,14 @@ add_file -type verilog "src/hdmi2/serializer.sv"
 add_file -type verilog "src/hdmi2/source_product_description_info_frame.sv"
 add_file -type verilog "src/hdmi2/tmds_channel.sv"
 add_file -type verilog "src/hw_uart.v"
+add_file -type verilog "src/iosys/gowin_dpb_menu.v"
+add_file -type verilog "src/iosys/iosys.v"
+add_file -type verilog "src/iosys/picorv32.v"
+add_file -type verilog "src/iosys/simplespimaster.v"
+add_file -type verilog "src/iosys/simpleuart.v"
+add_file -type verilog "src/iosys/spi_master.v"
+add_file -type verilog "src/iosys/spiflash.v"
+add_file -type verilog "src/iosys/textdisp.v"
 add_file -type verilog "src/mappers/generic.sv"
 add_file -type verilog "src/mappers/iir_filter.v"
 add_file -type verilog "src/mappers/JYCompany.sv"
@@ -147,7 +98,6 @@ set_option -synthesis_tool gowinsynthesis
 set_option -top_module nestang_top
 set_option -verilog_std sysv2017
 set_option -rw_check_on_ram 1
-set_option -place_option 2
 set_option -use_mspi_as_gpio 1
 set_option -use_ready_as_gpio 1
 set_option -use_done_as_gpio 1
