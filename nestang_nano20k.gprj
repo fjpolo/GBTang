@@ -5,6 +5,29 @@
     <Version>5</Version>
     <Device name="GW2AR-18C" pn="GW2AR-LV18QN88C8/I7">gw2ar18c-000</Device>
     <FileList>
+        <File path="VerilogBoy/rtl/alu.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/boy.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/brom.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/clk_div.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/common.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/control.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/cpu.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/dma.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/edgedet.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/mbc5.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/ppu.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/regfile.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/serial.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/singleport_ram.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/singlereg.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_channel_mix.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_length_ctr.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_noise.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_square.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_vol_env.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_wave.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/timer.v" type="file.verilog" enable="1"/>
         <File path="src/EEPROM_24C0x.sv" type="file.verilog" enable="1"/>
         <File path="src/apu.v" type="file.verilog" enable="1"/>
         <File path="src/autofire.v" type="file.verilog" enable="1"/>
