@@ -1,0 +1,4 @@
+[submodule "VerilogBoy"]
+	path = VerilogBoy
+	url = https://github.com/fjpolo/VerilogBoy
+	branch = master
