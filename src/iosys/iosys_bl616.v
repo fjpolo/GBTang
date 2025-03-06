@@ -10,7 +10,7 @@
 module iosys_bl616 #(
     parameter FREQ=21_477_000,
     parameter [14:0] COLOR_LOGO=15'b00000_10101_00000,
-    parameter [15:0] CORE_ID=1      // 1: nestang, 2: snestang
+    parameter [15:0] CORE_ID=3      // 1: nestang, 2: snestang, 3: gbtang
 )
 (
     input clk,                      // main logic clock
