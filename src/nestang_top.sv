@@ -372,16 +372,26 @@ wire [9:0]  overlay_y;
 wire [15:0] overlay_color;      // BGR5
 
 // HDMI output
-nes2hdmi u_hdmi (     // purple: RGB=440064 (010001000_00000000_01100100), BGR5=01100_00000_01000
-    .clk(clk), .resetn(sys_resetn),
-    .color(color), .cycle(cycle), 
-    .scanline(scanline), .sample(sample >> 1),
-    .i_reg_aspect_ratio(NES_aspect_ratio),
-    .overlay(overlay), .overlay_x(overlay_x), .overlay_y(overlay_y),
-    .overlay_color(overlay_color),
-    .clk_pixel(hclk), .clk_5x_pixel(hclk5),
-    .tmds_clk_n(tmds_clk_n), .tmds_clk_p(tmds_clk_p),
-    .tmds_d_n(tmds_d_n), .tmds_d_p(tmds_d_p)
+gameboy2hdmi u_hdmi(
+    .clk(clk),                  // Main clock (Game Boy clock)
+    .resetn(sys_resetn),
+    // Game Boy video signals
+    .gameboy_hs(),          // Horizontal Sync
+    .gameboy_vs(),         // Vertical Sync
+    .gameboy_cpl(),        // Pixel Latch
+    .gameboy_pixel(),// Pixel Data (2-bit)
+    .gameboy_valid(),      // Pixel Valid
+    // Game Boy audio signals
+    .gameboy_left(),  // Left Audio
+    .gameboy_right(), // Right Audio
+    // Video clocks
+    .clk_pixel(hclk),
+    .clk_5x_pixel(hclk5),
+    // HDMI outputs
+    .tmds_clk_n(tmds_clk_n),
+    .tmds_clk_p(tmds_clk_p),
+    .tmds_d_n(tmds_d_n),
+    .tmds_d_p(tmds_d_p)
 );
 
 // IOSys for menu, rom loading...

@@ -39,6 +39,7 @@
         <File path="src/dpram.v" type="file.verilog" enable="1"/>
         <File path="src/dualshock_controller.v" type="file.verilog" enable="1"/>
         <File path="src/game_loader.v" type="file.verilog" enable="1"/>
+        <File path="src/gameboy2hdmi.sv" type="file.verilog" enable="1"/>
         <File path="src/hdmi2/audio_clock_regeneration_packet.sv" type="file.verilog" enable="1"/>
         <File path="src/hdmi2/audio_info_frame.sv" type="file.verilog" enable="1"/>
         <File path="src/hdmi2/audio_sample_packet.sv" type="file.verilog" enable="1"/>
