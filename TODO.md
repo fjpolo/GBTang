@@ -1,0 +1,3 @@
+- Connect SDRAM to VerilogBoy
+- Update SDRAM controller
+- Update PLL to GB frequency
