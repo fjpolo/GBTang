@@ -1,0 +1,3 @@
+[submodule "OSTang"]
+	path = OSTang
+	url = https://github.com/fjpolo/OSTang
