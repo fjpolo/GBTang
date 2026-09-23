@@ -3,3 +3,4 @@ impl
 gb.gprj.user
 
 *.vcd
+release/
