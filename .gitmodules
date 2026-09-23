@@ -6,3 +6,6 @@
 	path = VerilogBoy
 	url = https://github.com/fjpolo/VerilogBoy
 	branch = fjpolo/TangNano20k
+[submodule "tangcore"]
+	path = tangcore
+	url = https://github.com/fjpolo/tangcore
