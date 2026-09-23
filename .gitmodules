@@ -1,7 +1,8 @@
 [submodule "OSTang"]
 	path = OSTang
 	url = https://github.com/fjpolo/OSTang
-[submodule "verilogboy"]
-	path = verilogboy
-	url = https://github.com/zephray/verilogboy
-	branch = master
+	branch = fjpolo/gameboy
+[submodule "VerilogBoy"]
+	path = VerilogBoy
+	url = https://github.com/fjpolo/VerilogBoy
+	branch = fjpolo/TangNano20k

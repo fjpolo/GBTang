@@ -219,7 +219,6 @@ wire        id_reg_enhanced_apu_sel = mem_valid && (mem_addr == 32'h0200_0080);
 wire        spiflash_reg_byte_sel = mem_valid && (mem_addr == 32'h0200_0070);
 wire        spiflash_reg_word_sel = mem_valid && (mem_addr == 32'h0200_0074);
 wire        spiflash_reg_ctrl_sel = mem_valid && (mem_addr == 32'h0200_0078);
-wire        id_reg_enhanced_apu_sel = mem_valid && (mem_addr == 32'h0200_0080);
 
 // Cheats
 wire        reg_cheats_enabled_sel = mem_valid && (mem_addr == 32'h0200_00A0);
@@ -403,6 +402,9 @@ spiflash #(.ADDR(24'h500000), .LEN(FIRMWARE_SIZE)) flash (
     .reg_di(mem_wdata), .reg_do(spiflash_reg_do), .reg_wait(spiflash_reg_wait)
 );
 
+assign flash_spi_wp_n   = 1'b1;
+assign flash_spi_hold_n = 1'b1;
+
 // RV memory access
 assign rv_addr = flash_loading ? flash_addr : mem_addr;
 assign rv_wdata = flash_loading ? {flash_d, flash_d, flash_d, flash_d} : mem_wdata;
@@ -572,6 +574,9 @@ assign o_wb_odata = wb_odata;
 assign o_wb_we = wb_we;
 assign o_wb_stb = wb_stb;
 assign o_wb_cyc = wb_cyc;
+
+assign o_dbg_led[0] = ~flash_loaded;
+assign o_dbg_led[1] = ~flash_loading;
 
 // BSRAM
 always @(posedge clk) begin

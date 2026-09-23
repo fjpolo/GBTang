@@ -100,33 +100,93 @@ wire [2:0] diskside_osd = 0;
 wire blend = 0;
 wire bk_save = 0;
 
-// NES signals
-reg reset_nes = 1;
+// GB/VerilogBoy signals
+reg reset_nes = 1;    // active-high reset to boy core
 reg clkref;
-wire [5:0] color;
-wire [15:0] sample;
-wire [8:0] scanline;
-wire [8:0] cycle;
-wire [2:0] joypad_out;
-wire joypad_strobe = joypad_out[0];
-wire [1:0] joypad_clock;
-wire [4:0] joypad1_data, joypad2_data;
+wire clk_gb;
+
+// VerilogBoy cartridge bus
+wire [15:0] gb_addr;
+wire [7:0]  gb_dout;    // CPU -> cart
+wire [7:0]  gb_din;     // cart -> CPU
+wire        gb_wr;
+wire        gb_rd;
+
+// VerilogBoy video signals
+wire gameboy_hs;
+wire gameboy_vs;
+wire gameboy_cpl;
+wire [1:0] gameboy_pixel;
+wire gameboy_valid;
+
+// VerilogBoy audio signals
+wire [15:0] gameboy_left;
+wire [15:0] gameboy_right;
 
 wire sdram_busy;
-wire [21:0] memory_addr_cpu, memory_addr_ppu;
-wire memory_read_cpu, memory_read_ppu;
-wire memory_write_cpu, memory_write_ppu;
-wire [7:0] memory_din_cpu, memory_din_ppu;
-wire [7:0] memory_dout_cpu, memory_dout_ppu;
+wire [21:0] memory_addr_cpu;  // mapped from gb_addr for SDRAM portB
+wire [21:0] memory_addr_ppu;  // unused (tied 0)
+wire memory_read_cpu, memory_write_cpu;
+wire [7:0] memory_din_cpu;    // SDRAM -> CPU
+wire [7:0] memory_dout_cpu;   // CPU -> SDRAM
 
-reg [7:0] joypad_bits, joypad_bits2;
-reg [1:0] last_joypad_clock;
-wire [31:0] dbgadr;
-wire [1:0] dbgctr;
+// MBC5 instantiation for Game Boy cartridge mapping
+wire [22:14] vb_rom_a;
+wire [16:13] vb_ram_a;
+wire rom_cs_n, ram_cs_n;
 
-wire [1:0] nes_ce;
+mbc5 u_mbc5(
+    .vb_clk (clk_gb),
+    .vb_rst (~sys_resetn | reset_nes),
+    .vb_a   (gb_addr[15:12]),
+    .vb_d   (gb_dout),
+    .vb_wr  (gb_wr),
+    .vb_rd  (gb_rd),
+    .rom_a  (vb_rom_a),
+    .ram_a  (vb_ram_a),
+    .rom_cs_n (rom_cs_n),
+    .ram_cs_n (ram_cs_n)
+);
 
-wire loading;                 // from iosys or game_data
+// Map ROM & RAM to SDRAM:
+// ROM: 0x000000 - 0x3FFFFF (up to 4MB) mapped via vb_rom_a + gb_addr[13:0]
+// RAM: 0x400000+ mapped via vb_ram_a + gb_addr[12:0]
+assign memory_addr_cpu  = ~rom_cs_n ? {vb_rom_a[21:14], gb_addr[13:0]} :
+                          ~ram_cs_n ? {2'b01, 3'b000, vb_ram_a[16:13], gb_addr[12:0]} :
+                          22'd0;
+assign memory_addr_ppu  = 22'd0;
+assign memory_read_cpu  = ~loading & gb_rd & (~rom_cs_n | ~ram_cs_n);
+assign memory_write_cpu = ~loading & gb_wr & ~ram_cs_n; // Writes only to Cart RAM, never overwrite Cart ROM!
+assign memory_dout_cpu  = gb_dout;
+assign gb_din           = memory_din_cpu;
+
+// Combine joy1 and joy2 so either controller port works
+wire [11:0] joy = joy1_btns | joy2_btns;
+
+// Joypad: GB key mapping (VerilogBoy: bit 7=Down, 6=Up, 5=Left, 4=Right, 3=Start, 2=Select, 1=B, 0=A)
+// Standard NES/SNES layout:
+//   A: joy[0] (NES A / SNES B) | joy[8] (SNES A)
+//   B: joy[1] (NES B / SNES Y) | joy[9] (SNES X)
+wire [7:0] gb_key = {
+    joy[5],                 // Down
+    joy[4],                 // Up
+    joy[6],                 // Left
+    joy[7],                 // Right
+    joy[3],                 // Start
+    joy[2],                 // Select
+    joy[1] | joy[9],        // B (NES B / SNES Y / SNES X)
+    joy[0] | joy[8]         // A (NES A / SNES B / SNES A)
+};
+
+wire [4:0]  joypad1_data = 5'b11111;  // unused legacy
+wire [4:0]  joypad2_data = 5'b11111;
+wire [2:0]  joypad_out   = 3'b0;
+wire [1:0]  joypad_clock = 2'b0;
+reg  [7:0]  joypad_bits, joypad_bits2;
+reg  [1:0]  last_joypad_clock;
+wire [1:0]  nes_ce;
+
+wire loading;
 wire [7:0] loader_do;
 wire loader_do_valid;
 
@@ -187,12 +247,23 @@ wire ext_audio;
 // Clocks
 ///////////////////////////
 
-wire clk;       // 21.477Mhz main clock
+wire clk;       // ~21.6 MHz main clock (27/5*4 via PLL clkoutd3)
 wire fclk;      // 3x clk SDRAM clock
 wire hclk;      // 720p pixel clock: 74.25 Mhz
 wire hclk5;     // 5x pixel clock: 371.25 Mhz
 wire clk27;     // 27Mhz to generate hclk/hclk5
 wire clk_usb;   // 12Mhz USB clock
+
+// Game Boy clock enable: divide clk (~21.6 MHz) by 5 => ~4.32 MHz
+// VerilogBoy boy.v expects clk = 4.194304 MHz; CE method avoids extra PLL
+reg [2:0] gb_ce_cnt;
+wire gb_ce = (gb_ce_cnt == 3'd0);
+always @(posedge clk) begin
+    if (~sys_resetn)
+        gb_ce_cnt <= 3'd0;
+    else
+        gb_ce_cnt <= (gb_ce_cnt == 3'd4) ? 3'd0 : gb_ce_cnt + 3'd1;
+end
 
 reg sys_resetn = 0;
 reg [7:0] reset_cnt = 255;      // reset for 255 cycles before start everything
@@ -237,47 +308,55 @@ assign fclk = sys_clk;
 
 wire [31:0] status;
 
-// Main NES machine
-wire [7:0] GB_memory_din_cpu;
-wire [7:0] GB_cheats_otuput_data_test;
-wire GB_top_cheats_stb;
+// 4.32 MHz Game Boy clock (21.6 MHz / 5)
+reg [2:0] clk_gb_cnt;
+reg r_clk_gb;
+always @(posedge clk or negedge sys_resetn) begin
+    if (!sys_resetn) begin
+        clk_gb_cnt <= 3'd0;
+        r_clk_gb   <= 1'b0;
+    end else begin
+        if (clk_gb_cnt == 3'd4) begin
+            clk_gb_cnt <= 3'd0;
+            r_clk_gb   <= 1'b1;
+        end else begin
+            clk_gb_cnt <= clk_gb_cnt + 3'd1;
+            if (clk_gb_cnt == 3'd1)
+                r_clk_gb <= 1'b0;
+        end
+    end
+end
+assign clk_gb = r_clk_gb;
 
-assign GB_top_cheats_stb= (GB_cheats_enabled)&&(GB_cheats_loaded)&&(GB_cheats_stb);
-assign GB_memory_din_cpu = (!GB_top_cheats_stb ? memory_din_cpu : GB_cheats_otuput_data);
+///////////////////////////
+// VerilogBoy Game Boy Core
+///////////////////////////
 
-// NES nes(
-//     .clk(clk), .reset_nes(reset_nes), .cold_reset(1'b0),
-//     .sys_type(system_type), .nes_div(nes_ce),
-//     .mapper_flags(mapper_flags),
-//     .sample(sample), .color(color),
-//     .joypad_out(joypad_out), .joypad_clock(joypad_clock), 
-//     .joypad1_data(joypad1_data), .joypad2_data(joypad2_data),
-
-//     .fds_busy(), .fds_eject(), .diskside_req(), .diskside(),        // disk system
-//     .audio_channels(5'b11111),  // enable all channels
-    
-//     .cpumem_addr(memory_addr_cpu),
-//     .cpumem_read(memory_read_cpu),
-//     .cpumem_din(GB_cheats_otuput_data),
-//     .cpumem_write(memory_write_cpu),
-//     .cpumem_dout(memory_dout_cpu),
-//     .ppumem_addr(memory_addr_ppu),
-//     .ppumem_read(memory_read_ppu),
-//     .ppumem_write(memory_write_ppu),
-//     .ppumem_din(memory_din_ppu),
-//     .ppumem_dout(memory_dout_ppu),
-
-//     .bram_addr(), .bram_din(), .bram_dout(), .bram_write(), .bram_override(),
-
-//     .cycle(cycle), .scanline(scanline),
-//     .int_audio(int_audio),    // VRC6
-//     .ext_audio(ext_audio),
-
-//     .apu_ce(), .gg(), .gg_code(), .gg_avail(), .gg_reset(), .emphasis(), .save_written(),
-//     // Enhanced APU
-//     .i_APU_enhancements_ce(GB_enhanced_APU),
-//     .i_APU_mapper_saturates((GB_mapper == 8'h04)||(GB_mapper == 8'h45))   // Mapper4/MMC3 and Mapper69 saturate so far
-// );
+boy u_verilogboy (
+    .rst  (~sys_resetn | reset_nes),  // active-high reset
+    .clk  (clk_gb),                   // 4.32 MHz Game Boy clock
+    // Cartridge interface
+    .a    (gb_addr),
+    .dout (gb_dout),
+    .din  (gb_din),
+    .wr   (gb_wr),
+    .rd   (gb_rd),
+    // Keyboard: active-high in VerilogBoy (1=pressed, 0=released)
+    .key  (gb_key),
+    // LCD output
+    .hs   (gameboy_hs),
+    .vs   (gameboy_vs),
+    .cpl  (gameboy_cpl),
+    .pixel(gameboy_pixel),
+    .valid(gameboy_valid),
+    // Sound output
+    .left (gameboy_left),
+    .right(gameboy_right),
+    // Debug
+    .phi  (),
+    .done (),
+    .fault()
+);
 
 // loader_write -> clock when data available
 reg loader_write_mem;
@@ -299,7 +378,7 @@ always @(posedge clk) begin
         mapper_flags <= loader_flags;
 end
 
-// From sdram_nes.v or sdram_sim.v
+// SDRAM: Port A unused (was NES PPU), Port B serves GB cartridge bus
 sdram_gb sdram (
     .clk(fclk), .clkref(clkref), .resetn(sys_resetn), .busy(sdram_busy),
 
@@ -307,37 +386,53 @@ sdram_gb sdram (
     .SDRAM_nCS(O_sdram_cs_n), .SDRAM_nWE(O_sdram_wen_n), .SDRAM_nRAS(O_sdram_ras_n), 
     .SDRAM_nCAS(O_sdram_cas_n), .SDRAM_CKE(O_sdram_cke), .SDRAM_DQM(O_sdram_dqm), 
 
-    // PPU
-    .addrA(memory_addr_ppu), .weA(memory_write_ppu), .dinA(memory_dout_ppu),
-    .oeA(memory_read_ppu), .doutA(memory_din_ppu),
+    // Port A: unused (tie off)
+    .addrA(22'd0), .weA(1'b0), .dinA(8'd0), .oeA(1'b0), .doutA(),
 
-    // CPU
-    .addrB(loading ? loader_addr_mem : memory_addr_cpu), .weB(loader_write_mem || memory_write_cpu),
-    .dinB(loading ? loader_write_data_mem : memory_dout_cpu),
-    .oeB(~loading & memory_read_cpu), .doutB(memory_din_cpu),
+    // Port B: GB cartridge ROM/RAM reads + loader writes
+    .addrB(loading ? loader_addr_mem : memory_addr_cpu),
+    .weB  (loader_write_mem | memory_write_cpu),
+    .dinB (loading ? loader_write_data_mem : memory_dout_cpu),
+    .oeB  (~loading & memory_read_cpu),
+    .doutB(memory_din_cpu),
 
     // IOSys risc-v softcore
     .rv_addr({rv_addr[20:2], rv_word}), .rv_din(rv_word ? rv_wdata[31:16] : rv_wdata[15:0]), 
     .rv_ds(rv_ds), .rv_dout(rv_dout), .rv_req(rv_req), .rv_req_ack(rv_req_ack), .rv_we(rv_wstrb != 0)
 );
 
-// ROM parser
-GameLoader loader(
-    .clk(clk), .reset(~sys_resetn | loader_reset), .downloading(loading), 
-    .filetype({4'b0000, type_nsf, type_fds, type_nes, type_bios}),
-    .is_bios(is_bios), .invert_mirroring(1'b0),
-    .indata(loader_do), .indata_clk(loader_do_valid),
+// ROM loader: sequential raw binary stream into SDRAM starting from 0x000000
+reg loader_do_valid_r;
+always @(posedge clk) loader_do_valid_r <= loader_do_valid;
+wire loader_do_valid_pulse = loader_do_valid & ~loader_do_valid_r;
 
-    .mem_addr(loader_addr), .mem_data(loader_write_data), .mem_write(loader_write),
-    .bios_download(),
-    .mapper_flags(loader_flags), .busy(loader_busy), .done(loader_done),
-    .error(loader_fail), .rom_loaded(),
-    // APU Enhancement
-    .o_mapper(GB_mapper)
-);
+reg [21:0] raw_loader_addr;
+reg [7:0]  raw_loader_data;
+reg        raw_loader_write;
 
-assign int_audio = 1;
-assign ext_audio = (mapper_flags[7:0] == 19) | (mapper_flags[7:0] == 24) | (mapper_flags[7:0] == 26);
+always @(posedge clk) begin
+    if (~sys_resetn || loader_reset) begin
+        raw_loader_addr  <= 22'd0;
+        raw_loader_write <= 1'b0;
+    end else if (loading && loader_do_valid_pulse) begin
+        raw_loader_data  <= loader_do;
+        raw_loader_write <= 1'b1;
+    end else if (raw_loader_write) begin
+        raw_loader_write <= 1'b0;
+        raw_loader_addr  <= raw_loader_addr + 22'd1;
+    end
+end
+
+assign loader_write      = raw_loader_write;
+assign loader_addr       = raw_loader_addr;
+assign loader_write_data = raw_loader_data;
+assign loader_done       = ~loading & loading_r;
+assign loader_busy       = loading;
+assign loader_fail       = 1'b0;
+assign loader_flags      = 64'd0;
+
+assign int_audio = 0;
+assign ext_audio  = 0;
 
 always @(posedge clk) begin
     clkref <= ~clkref;
@@ -368,15 +463,26 @@ wire overlay;                   // iosys controls overlay
 wire [10:0] overlay_x;
 wire [9:0]  overlay_y;
 wire [15:0] overlay_color;      // BGR5
+wire GB_aspect_ratio;
 
-// HDMI output
-nes2hdmi u_hdmi (     // purple: RGB=440064 (010001000_00000000_01100100), BGR5=01100_00000_01000
-    .clk(clk), .resetn(sys_resetn),
-    .color(color), .cycle(cycle), 
-    .scanline(scanline), .sample(sample >> 1),
+// HDMI output - Game Boy video+audio via gameboy2hdmi
+gameboy2hdmi u_hdmi (
+    .clk(clk_gb), .resetn(sys_resetn),
+    // Game Boy video
+    .gameboy_hs(gameboy_hs),
+    .gameboy_vs(gameboy_vs),
+    .gameboy_cpl(gameboy_cpl),
+    .gameboy_pixel(gameboy_pixel),
+    .gameboy_valid(gameboy_valid),
+    // Game Boy audio
+    .gameboy_left(gameboy_left),
+    .gameboy_right(gameboy_right),
+    // Aspect ratio
     .i_reg_aspect_ratio(GB_aspect_ratio),
+    // OSD overlay
     .overlay(overlay), .overlay_x(overlay_x), .overlay_y(overlay_y),
     .overlay_color(overlay_color),
+    // HDMI clocks and output
     .clk_pixel(hclk), .clk_5x_pixel(hclk5),
     .tmds_clk_n(tmds_clk_n), .tmds_clk_p(tmds_clk_p),
     .tmds_d_n(tmds_d_n), .tmds_d_p(tmds_d_p)
@@ -465,7 +571,6 @@ always @(posedge clk) begin            // RV
     end
 end
 reg GB_enhanced_APU;
-reg [7:0] GB_mapper;
 iosys #(.COLOR_LOGO(15'b01000_00000_01000), .CORE_ID(3) )     // purple nestang logo
     iosys (
     .clk(clk), .hclk(hclk), .resetn(sys_resetn),
@@ -488,23 +593,23 @@ iosys #(.COLOR_LOGO(15'b01000_00000_01000), .CORE_ID(3) )     // purple nestang 
 
     .sd_clk(sd_clk), .sd_cmd(sd_cmd), .sd_dat0(sd_dat0), .sd_dat1(sd_dat1),
     .sd_dat2(sd_dat2), .sd_dat3(sd_dat3),
-    .o_reg_enhanced_apu(GB_enhanced_APU),
-    // Wishbone master
-    .i_wb_ack(GB_wb_slave_ack),
-    .i_wb_stall(GB_wb_slave_stall),
-    .i_wb_idata(GB_wb_slave_data),
-    .i_wb_err(GB_wb_slave_err),
-	.o_wb_cyc(GB_wb_master_cyc),
-    .o_wb_stb(GB_wb_master_stb),
-    .o_wb_we(GB_wb_master_we),
-    .o_wb_err(GB_wb_master_err),
-    .o_wb_addr(GB_wb_slave_addr),
-    .o_wb_odata(GB_wb_master_data),
-    .o_wb_sel(GB_wb_master_sel),
+    .o_reg_enhanced_apu(),
+    // Wishbone master (tied off)
+    .i_wb_ack(1'b0),
+    .i_wb_stall(1'b0),
+    .i_wb_idata(129'd0),
+    .i_wb_err(1'b0),
+	.o_wb_cyc(),
+    .o_wb_stb(),
+    .o_wb_we(),
+    .o_wb_err(),
+    .o_wb_addr(),
+    .o_wb_odata(),
+    .o_wb_sel(),
 
     // Cheats
-    .o_cheats_enabled(GB_cheats_enabled),
-    .o_cheats_loaded(GB_cheats_loaded),
+    .o_cheats_enabled(),
+    .o_cheats_loaded(),
 
     // Debug LED
     .o_dbg_led(),
@@ -515,6 +620,28 @@ iosys #(.COLOR_LOGO(15'b01000_00000_01000), .CORE_ID(3) )     // purple nestang 
     // Aspect Ratio
     .o_reg_aspect_ratio(GB_aspect_ratio)
 );
+
+// Diagnostic LEDs:
+// led[0]: lights up (active low) once Game Boy CPU executes past $0100 in Cartridge ROM
+// led[1]: toggles with Game Boy PPU VSync (~1 Hz heartbeat)
+reg executed_game;
+always @(posedge clk_gb or negedge sys_resetn) begin
+    if (!sys_resetn)
+        executed_game <= 1'b0;
+    else if (gb_addr >= 16'h0100 && gb_addr <= 16'h7fff && gb_rd)
+        executed_game <= 1'b1;
+end
+
+reg [5:0] vs_cnt;
+always @(posedge gameboy_vs or negedge sys_resetn) begin
+    if (!sys_resetn)
+        vs_cnt <= 6'd0;
+    else
+        vs_cnt <= vs_cnt + 6'd1;
+end
+
+assign led[0] = ~executed_game;
+assign led[1] = ~vs_cnt[5];
 
 // Controller input
 `ifdef CONTROLLER_SNES
@@ -539,80 +666,6 @@ controller_ds2 joy2_ds2 (
 );
 `endif
 
-// Autofire for NES A (right) and B (left) buttons
-Autofire af_a (.clk(clk), .resetn(sys_resetn), .btn(joy1_btns[8]), .out(auto_a));
-Autofire af_b (.clk(clk), .resetn(sys_resetn), .btn(joy1_btns[9]), .out(auto_b));
-Autofire af_a2 (.clk(clk), .resetn(sys_resetn), .btn(joy2_btns[8]), .out(auto_a2));
-Autofire af_b2 (.clk(clk), .resetn(sys_resetn), .btn(joy2_btns[9]), .out(auto_b2));
-
-// Joypad handling
-always @(posedge clk) begin
-    if (joypad_strobe) begin
-        joypad_bits <= {joy1_btns[7:2], joy1_btns[1] | auto_b, joy1_btns[0] | auto_a};;
-        joypad_bits2 <= {joy2_btns[7:2], joy2_btns[1] | auto_b2, joy2_btns[0] | auto_a2};
-    end
-    if (!joypad_clock[0] && last_joypad_clock[0])
-        joypad_bits <= {1'b1, joypad_bits[7:1]};
-    if (!joypad_clock[1] && last_joypad_clock[1])
-        joypad_bits2 <= {1'b1, joypad_bits2[7:1]};
-    last_joypad_clock <= joypad_clock;
-end
-assign joypad1_data[0] = joypad_bits[0];
-assign joypad2_data[0] = joypad_bits2[0];
-
-`endif
-
-reg [23:0] led_cnt;
-always @(posedge clk) led_cnt <= led_cnt + 1;
-
-//
-// Wishbone Bus
-//
-wire GB_wb_master_cyc;
-wire GB_wb_master_stb;
-wire GB_wb_master_we;
-wire GB_wb_master_err;
-wire [1:0] GB_wb_slave_addr;
-wire [128:0] GB_wb_master_data;
-wire GB_wb_slave_ack;
-wire GB_wb_slave_stall;
-wire GB_wb_slave_err;
-wire [128:0] GB_wb_slave_data;
-wire [2:0] GB_wb_slave_sel;
-
-// Cheats
-wire [7:0] GB_cheats_otuput_data;
-wire GB_cheats_stb;
-wire [23:0] GB_cheats_memory_addr_cpu;
-wire GB_cheats_enabled;
-wire GB_cheats_loaded;
-
-assign GB_cheats_memory_addr_cpu = {2'b00, memory_addr_cpu};
-// assign led[0] = ~GB_cheats_enabled;
-// assign led[1] = ~GB_cheats_loaded;
-
-cheat_wizard(
-    .i_clk(clk),
-    .i_reset_n(sys_resetn), 
-    .i_cheats_enabled(GB_cheats_enabled),
-    .i_cheats_loaded(GB_cheats_loaded),
-    .i_sram_address(GB_cheats_memory_addr_cpu),
-    .i_sram_data(memory_din_cpu),
-    .o_cheat_stb(GB_cheats_stb),
-    .o_sram_data(GB_cheats_otuput_data),
-    .i_wb_cyc(GB_wb_master_cyc),
-    .i_wb_stb(GB_wb_master_stb),
-    .i_wb_we(GB_wb_master_we),
-    .i_wb_err(GB_wb_master_err),
-    .i_wb_addr(GB_wb_slave_addr),
-    .i_wb_idata(GB_wb_master_data),
-    .o_wb_ack(GB_wb_slave_ack),
-    .o_wb_stall(GB_wb_slave_stall),
-    .o_wb_err(GB_wb_slave_err)    
-);
-
-// Aspect Ratio
-reg GB_aspect_ratio;
-initial GB_aspect_ratio = 1'b0;
+`endif // !VERILATOR
 
 endmodule
