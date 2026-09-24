@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+    <Template>FPGA</Template>
+    <Version>5</Version>
+    <Device name="GW5AT-60B" pn="GW5AT-LV60PG484AC1/I0">gw5at60b-002</Device>
+    <FileList>
+        <!-- VerilogBoy Game Boy core -->
+        <File path="VerilogBoy/rtl/alu.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/boy.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/brom.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/clk_div.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/common.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/control.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/cpu.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/dma.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/edgedet.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/mbc5.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/ppu.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/regfile.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/serial.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/singleport_ram.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/singlereg.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_channel_mix.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_length_ctr.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_noise.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_square.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_vol_env.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/sound_wave.v" type="file.verilog" enable="1"/>
+        <File path="VerilogBoy/rtl/timer.v" type="file.verilog" enable="1"/>
+        <!-- GBTang top-level and peripherals -->
+        <File path="src/EEPROM_24C0x.sv" type="file.verilog" enable="1"/>
+        <File path="src/autofire.v" type="file.verilog" enable="1"/>
+        <File path="src/cart.sv" type="file.verilog" enable="1"/>
+        <File path="src/cheat_wizard.v" type="file.verilog" enable="1"/>
+        <File path="src/compat.v" type="file.verilog" enable="1"/>
+        <File path="src/controller_ds2.sv" type="file.verilog" enable="1"/>
+        <File path="src/controller_snes.v" type="file.verilog" enable="1"/>
+        <File path="src/dpram.v" type="file.verilog" enable="1"/>
+        <File path="src/dualshock_controller.v" type="file.verilog" enable="1"/>
+        <File path="src/game_loader.v" type="file.verilog" enable="1"/>
+        <File path="src/gameboy2hdmi.sv" type="file.verilog" enable="1"/>
+        <File path="src/gbtang_top.sv" type="file.verilog" enable="1"/>
+        <File path="src/hdmi2/audio_clock_regeneration_packet.sv" type="file.verilog" enable="1"/>
+        <File path="src/hdmi2/audio_info_frame.sv" type="file.verilog" enable="1"/>
+        <File path="src/hdmi2/audio_sample_packet.sv" type="file.verilog" enable="1"/>
+        <File path="src/hdmi2/auxiliary_video_information_info_frame.sv" type="file.verilog" enable="1"/>
+        <File path="src/hdmi2/hdmi.sv" type="file.verilog" enable="1"/>
+        <File path="src/hdmi2/packet_assembler.sv" type="file.verilog" enable="1"/>
+        <File path="src/hdmi2/packet_picker.sv" type="file.verilog" enable="1"/>
+        <File path="src/hdmi2/serializer.sv" type="file.verilog" enable="1"/>
+        <File path="src/hdmi2/source_product_description_info_frame.sv" type="file.verilog" enable="1"/>
+        <File path="src/hdmi2/tmds_channel.sv" type="file.verilog" enable="1"/>
+        <File path="src/hw_uart.v" type="file.verilog" enable="1"/>
+        <!-- OSTang iosys -->
+        <File path="OSTang/src/iosys/gowin_dpb_menu.v" type="file.verilog" enable="1"/>
+        <File path="OSTang/src/iosys/iosys.v" type="file.verilog" enable="1"/>
+        <File path="OSTang/src/iosys/picorv32.v" type="file.verilog" enable="1"/>
+        <File path="OSTang/src/iosys/simplespimaster.v" type="file.verilog" enable="1"/>
+        <File path="OSTang/src/iosys/simpleuart.v" type="file.verilog" enable="1"/>
+        <File path="OSTang/src/iosys/spi_master.v" type="file.verilog" enable="1"/>
+        <File path="OSTang/src/iosys/spiflash.v" type="file.verilog" enable="1"/>
+        <File path="OSTang/src/iosys/textdisp.v" type="file.verilog" enable="1"/>
+        <!-- Console 60K device files -->
+        <File path="src/console60k/config.v" type="file.verilog" enable="1"/>
+        <File path="src/console60k/gowin_pll_27.v" type="file.verilog" enable="1"/>
+        <File path="src/console60k/gowin_pll_gb.v" type="file.verilog" enable="1"/>
+        <File path="src/console60k/gowin_pll_hdmi.v" type="file.verilog" enable="1"/>
+        <File path="src/sdram_gb.v" type="file.verilog" enable="1"/>
+        <File path="src/uart_tx_V2.v" type="file.verilog" enable="1"/>
+        <File path="src/usb_hid_host.v" type="file.verilog" enable="1"/>
+        <File path="src/usb_hid_host_rom.v" type="file.verilog" enable="1"/>
+        <File path="src/wishbone_slaves.vh" type="file.verilog" enable="1"/>
+        <File path="src/console60k/console60k.cst" type="file.cst" enable="1"/>
+        <File path="src/console60k/console60k.sdc" type="file.sdc" enable="1"/>
+    </FileList>
+</Project>
