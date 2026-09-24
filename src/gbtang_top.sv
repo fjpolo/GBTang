@@ -396,9 +396,14 @@ sdram_gb sdram (
     .oeB  (~loading & memory_read_cpu),
     .doutB(memory_din_cpu),
 
-    // IOSys risc-v softcore
+    // IOSys risc-v softcore (only needed in standalone PicoRV32 mode)
+`ifdef MCU_BL616
+    .rv_addr(23'd0), .rv_din(16'd0), 
+    .rv_ds(2'd0), .rv_dout(), .rv_req(1'b0), .rv_req_ack(), .rv_we(1'b0)
+`else
     .rv_addr({rv_addr[20:2], rv_word}), .rv_din(rv_word ? rv_wdata[31:16] : rv_wdata[15:0]), 
     .rv_ds(rv_ds), .rv_dout(rv_dout), .rv_req(rv_req), .rv_req_ack(rv_req_ack), .rv_we(rv_wstrb != 0)
+`endif
 );
 
 // ROM loader: sequential raw binary stream into SDRAM starting from 0x000000
@@ -488,7 +493,52 @@ gameboy2hdmi u_hdmi (
     .tmds_d_n(tmds_d_n), .tmds_d_p(tmds_d_p)
 );
 
-// IOSys for menu, rom loading...
+`ifdef MCU_BL616
+// -----------------------------------------------------------------------------
+// TangCore Companion Mode: BL616 MCU manages menu and ROM streaming via UART
+// -----------------------------------------------------------------------------
+iosys_bl616 #(
+    .COLOR_LOGO(15'b00000_10101_00000), // green GBTang logo
+    .FREQ(21_500_000),
+    .CORE_ID(7)                          // 7: GBTang Game Boy / Color
+) sys_inst (
+    .clk(clk),
+    .hclk(hclk),
+    .resetn(sys_resetn),
+
+    .overlay(overlay),
+    .overlay_x(overlay_x),
+    .overlay_y(overlay_y),
+    .overlay_color(overlay_color[14:0]),
+    .joy1(joy1_btns),
+    .joy2(joy2_btns),
+    .hid1(),
+    .hid2(),
+    .uart_tx(UART_TXD),
+    .uart_rx(UART_RXD),
+
+    .rom_loading(loading),
+    .rom_do(loader_do),
+    .rom_do_valid(loader_do_valid),
+    .mgmt_address(),
+    .mgmt_read(),
+    .mgmt_readdata(16'd0),
+    .mgmt_write(),
+    .mgmt_writedata(),
+    .fdd_request(2'd0),
+    .kbd_data(),
+    .kbd_data_valid(),
+    .core_config()
+);
+
+assign overlay_color[15] = 1'b0;
+assign GB_aspect_ratio = 1'b0;
+wire system_type = 1'b0;
+
+`else
+// -----------------------------------------------------------------------------
+// Standalone Mode: OSTang iosys with internal PicoRV32 softcore
+// -----------------------------------------------------------------------------
 localparam RV_IDLE_REQ0 = 3'd0;
 localparam RV_WAIT0_REQ1 = 3'd1;
 localparam RV_DATA0 = 3'd2;
@@ -571,6 +621,7 @@ always @(posedge clk) begin            // RV
     end
 end
 reg GB_enhanced_APU;
+wire system_type;
 iosys #(.COLOR_LOGO(15'b01000_00000_01000), .CORE_ID(3) )     // purple nestang logo
     iosys (
     .clk(clk), .hclk(hclk), .resetn(sys_resetn),
@@ -620,6 +671,7 @@ iosys #(.COLOR_LOGO(15'b01000_00000_01000), .CORE_ID(3) )     // purple nestang 
     // Aspect Ratio
     .o_reg_aspect_ratio(GB_aspect_ratio)
 );
+`endif
 
 // Diagnostic LEDs:
 // led[0]: lights up (active low) once Game Boy CPU executes past $0100 in Cartridge ROM

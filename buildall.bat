@@ -29,6 +29,11 @@ if /i "%TARGET%"=="all" (
 )
 
 if /i "%TARGET%"=="console60k" (
+    call "%PROJECT_DIR%build_console60k.bat" bl616
+    exit /b %errorlevel%
+)
+
+if /i "%TARGET%"=="console60k_standalone" (
     call "%PROJECT_DIR%build_console60k.bat"
     exit /b %errorlevel%
 )

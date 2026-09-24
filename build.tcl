@@ -79,7 +79,7 @@ if {$dev eq "gbtang_nano20k"} {
     set_option -output_base_name nestang_${dev}_${controller}
     set_option -top_module nestang_top
 
-} elseif {$dev eq "gbtang_console60k" || $dev eq "console60k"} {
+} elseif {$dev eq "gbtang_console60k" || $dev eq "console60k" || $dev eq "console60k_bl616"} {
 # -----------------------------------------------------------------------
 # GBTang on Tang Console 60K (GW5AT-LV60PG484AC1/I0)
 # -----------------------------------------------------------------------
@@ -104,15 +104,23 @@ if {$dev eq "gbtang_nano20k"} {
     # GBTang video converter (Game Boy LCD -> 720p HDMI)
     add_file -type verilog "src/gameboy2hdmi.sv"
 
-    # OSTang iosys (PicoRV32 firmware with CORE_GB=3 support)
-    add_file -type verilog "OSTang/src/iosys/gowin_dpb_menu.v"
-    add_file -type verilog "OSTang/src/iosys/iosys.v"
-    add_file -type verilog "OSTang/src/iosys/picorv32.v"
-    add_file -type verilog "OSTang/src/iosys/simplespimaster.v"
-    add_file -type verilog "OSTang/src/iosys/simpleuart.v"
-    add_file -type verilog "OSTang/src/iosys/spi_master.v"
-    add_file -type verilog "OSTang/src/iosys/spiflash.v"
-    add_file -type verilog "OSTang/src/iosys/textdisp.v"
+    if {$controller eq "bl616" || $dev eq "console60k_bl616"} {
+        # TangCore Companion Mode: BL616 MCU interface
+        add_file -type verilog "src/bl616/iosys_bl616.v"
+        add_file -type verilog "src/bl616/uart_fixed.v"
+        add_file -type verilog "src/bl616/textdisp.v"
+        add_file -type verilog "OSTang/src/iosys/gowin_dpb_menu.v"
+    } else {
+        # Standalone Mode: OSTang iosys with internal PicoRV32 softcore
+        add_file -type verilog "OSTang/src/iosys/gowin_dpb_menu.v"
+        add_file -type verilog "OSTang/src/iosys/iosys.v"
+        add_file -type verilog "OSTang/src/iosys/picorv32.v"
+        add_file -type verilog "OSTang/src/iosys/simplespimaster.v"
+        add_file -type verilog "OSTang/src/iosys/simpleuart.v"
+        add_file -type verilog "OSTang/src/iosys/spi_master.v"
+        add_file -type verilog "OSTang/src/iosys/spiflash.v"
+        add_file -type verilog "OSTang/src/iosys/textdisp.v"
+    }
 
 } else {
     error "Unknown device $dev"
@@ -122,7 +130,7 @@ if {$dev eq "gbtang_nano20k"} {
 # Common source files (shared by all targets except gbtang targets
 # which use OSTang iosys instead)
 # -----------------------------------------------------------------------
-if {$dev ne "gbtang_nano20k" && $dev ne "gbtang_console60k" && $dev ne "console60k"} {
+if {$dev ne "gbtang_nano20k" && $dev ne "gbtang_console60k" && $dev ne "console60k" && $dev ne "console60k_bl616"} {
     add_file -type verilog "src/apu.v"
     add_file -type verilog "src/iosys/gowin_dpb_menu.v"
     add_file -type verilog "src/iosys/iosys.v"
@@ -155,7 +163,7 @@ if {$dev ne "gbtang_nano20k" && $dev ne "gbtang_console60k" && $dev ne "console6
 }
 
 # Files for NES targets only
-if {$dev ne "gbtang_nano20k" && $dev ne "gbtang_console60k" && $dev ne "console60k"} {
+if {$dev ne "gbtang_nano20k" && $dev ne "gbtang_console60k" && $dev ne "console60k" && $dev ne "console60k_bl616"} {
     add_file -type verilog "src/autofire.v"
     add_file -type verilog "src/cart.sv"
     add_file -type verilog "src/compat.v"
@@ -183,13 +191,13 @@ add_file -type verilog "src/usb_hid_host.v"
 add_file -type verilog "src/usb_hid_host_rom.v"
 
 # GBTang-specific files (only when building gbtang target)
-if {$dev eq "gbtang_nano20k" || $dev eq "gbtang_console60k" || $dev eq "console60k"} {
+if {$dev eq "gbtang_nano20k" || $dev eq "gbtang_console60k" || $dev eq "console60k" || $dev eq "console60k_bl616"} {
     add_file -type verilog "src/gbtang_top.sv"
 }
 
 set_option -synthesis_tool gowinsynthesis
 set_option -verilog_std sysv2017
-if {$dev ne "gbtang_nano20k" && $dev ne "gbtang_console60k" && $dev ne "console60k"} {
+if {$dev ne "gbtang_nano20k" && $dev ne "gbtang_console60k" && $dev ne "console60k" && $dev ne "console60k_bl616"} {
     set_option -rw_check_on_ram 1
 } else {
     set_option -rw_check_on_ram 0

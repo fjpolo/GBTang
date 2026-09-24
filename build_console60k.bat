@@ -26,8 +26,14 @@ if /i "%~1"=="--all" (
     set BUILD_FPGA=1
 )
 
+set TARGET_MODE=standalone
+if /i "%~1"=="bl616" set TARGET_MODE=bl616
+if /i "%~1"=="--bl616" set TARGET_MODE=bl616
+if /i "%~2"=="bl616" set TARGET_MODE=bl616
+if /i "%~2"=="--bl616" set TARGET_MODE=bl616
+
 echo ============================================================
-echo   GBTang Build - Tang Console 60K (GW5AT-60B)
+echo   GBTang Build - Tang Console 60K (GW5AT-60B) [%TARGET_MODE%]
 echo ============================================================
 
 if "%BUILD_FW%"=="1" (
@@ -41,12 +47,16 @@ if "%BUILD_FW%"=="1" (
 )
 
 if "%BUILD_FPGA%"=="1" (
-    echo [*] Building FPGA bitstream for Tang Console 60K...
+    echo [*] Building FPGA bitstream for Tang Console 60K [%TARGET_MODE%]...
     if not exist "%GWSH%" (
         echo [ERROR] Gowin IDE not found at: %GWSH%
         exit /b 1
     )
-    "%GWSH%" "%BUILD_TCL%" gbtang_console60k
+    if "%TARGET_MODE%"=="bl616" (
+        "%GWSH%" "%BUILD_TCL%" console60k bl616
+    ) else (
+        "%GWSH%" "%BUILD_TCL%" gbtang_console60k
+    )
     if errorlevel 1 (
         echo [ERROR] FPGA synthesis/PnR failed.
         exit /b 1
