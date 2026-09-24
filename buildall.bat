@@ -1,23 +1,42 @@
-
 @echo off
-set GWSH=..\..\Gowin_V1.9.9_x64\IDE\bin\gw_sh
+rem ============================================================================
+rem GBTang - Batch Build All (for TangCore distribution or automated builds)
+rem
+rem Usage:
+rem   buildall.bat              - Builds default target (console60k)
+rem   buildall.bat console60k   - Builds console60k bitstream (.fs and .bin)
+rem   buildall.bat nano20k      - Builds nano20k bitstream
+rem   buildall.bat all          - Builds both console60k and nano20k
+rem ============================================================================
 
-echo. 
-echo ============ Building nano20k ===============
-echo.
-%GWSH% build.tcl nano20k
+setlocal
+set PROJECT_DIR=%~dp0
+cd /d "%PROJECT_DIR%"
 
-echo.
-echo ============ Building primer25k with snes/nes controller ===============
-echo.
-%GWSH% build.tcl primer25k snes
+set TARGET=%~1
+if "%TARGET%"=="" set TARGET=console60k
 
-echo.
-echo ============ Building primer25k with ds2 controller ===============
-echo.
-%GWSH% build.tcl primer25k ds2
+if /i "%TARGET%"=="all" (
+    echo [*] Building Tang Console 60K...
+    call "%PROJECT_DIR%build_console60k.bat"
+    if errorlevel 1 exit /b 1
 
-dir impl\pnr\*.fs
+    echo [*] Building Tang Nano 20K...
+    call "%PROJECT_DIR%build_nano20k.bat"
+    if errorlevel 1 exit /b 1
 
-echo "All done."
+    exit /b 0
+)
 
+if /i "%TARGET%"=="console60k" (
+    call "%PROJECT_DIR%build_console60k.bat"
+    exit /b %errorlevel%
+)
+
+if /i "%TARGET%"=="nano20k" (
+    call "%PROJECT_DIR%build_nano20k.bat"
+    exit /b %errorlevel%
+)
+
+echo [ERROR] Unknown target: %TARGET%
+exit /b 1
